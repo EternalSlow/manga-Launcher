@@ -1,0 +1,40 @@
+/* Общие стили */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #121416 0%, #1a1c1f 100%);
+    color: #e0e0e0;
+    padding: 20px;
+    overflow-x: hidden;
+    overflow: scroll;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background-color: #1a1c1f;
+    border: 1px;
+}
+::-webkit-scrollbar-thumb {
+    background-color: rgba(237,239,242,0.5);
+    border-radius: 5px;
+    border: 2px solid #1a1c1f;
+}
+::-webkit-scrollbar-thumb:hover {
+    background-color: #555;
+}

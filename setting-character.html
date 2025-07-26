@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>setting manga</title>
+    <link rel="stylesheet" type="text/css" href="style/setting-character.css">
+    <link rel="stylesheet" href="style/simple.css">
+</head>
+<body>
+    <div class='container-setting'>
+        <div class='Cover-Setting'>
+            <h2 class="text">Выбрать картинку...</h2>    
+        </div>
+        <div class='Name-Title'>
+            <h2 class="text-setting">Name</h2>
+            <form> <input type="text"></form>
+        </div>
+        <div class='description-setting'>
+            <h2 class="text-setting">Описание</h2>
+            <form> <input type="text"></form>
+        </div>
+        <div class="status-setting">
+            <button>Выходит</button>
+            <button>Закончился</button>
+            <button>Заморожен</button>
+            <h2 class="text-setting">Статус</h2>
+            <form> <input type="text"></form>
+        </div>
+        <div class="translate-setting">
+            <h2 class="text-setting">Перевод</h2>
+            <form> <input type="text"></form>
+        </div>
+        <div class="date-setting">
+            <h2 class="text-setting">Дата</h2>
+            <form> <input type="text"></form>
+        </div>
+        <div class="type-setting">
+            <h2 class="text-setting">Тип произведения</h2>
+            <form> <input type="text"></form>
+        </div>
+        <button class='Save'>Save</button>
+        <button class="cancel">Cancel</button>
+    </div>
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const comicId = urlParams.get('id');
+
+    async function loadComicDetail() {
+        try {
+            if (typeof require !== 'undefined') {
+                const fs = require('fs');
+                const path = require('path');
+                const comicPath = path.join('comics', comicId);
+                const metaPath = path.join(comicPath, 'head.json');
+
+                if (!fs.existsSync(metaPath)) {
+                    throw new Error('Файл метаданных не найден');
+                }
+
+                const metaData = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+                const coverPath = path.join(comicPath, metaData.Cover);
+                const chapters = [];
+                const chapterCount = parseInt(metaData.count) || 0;
+            }
+                return {
+                    id: comicId,
+                    name: metaData.Name || comicId,
+                    cover: coverPath,
+                    description: metaData.description || "Описание отсутствует",
+                    date: metaData.date || "Неизвестно",
+                    count: metaData.count || "0",
+                    status: metaData.status || "Неизвестен",
+                    translate: metaData.translate || "Неизвестен",
+                    love: metaData.love || false,
+                    type: metaData.type || "Манхва",
+                    chapters: chapters
+                };
+        } 
+        catch (error) {
+            console.error('Ошибка загрузки деталей комикса:', error);
+            return null;
+        }
+    }
+
+    async function init() {
+        const comic = await loadComicDetail();
+        renderComicDetail(comic);
+        }
+</script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+.container-setting {
+    height: 800px;
+    width: 400px;
+    display: grid;
+    position: center;
+    background-color: #131416;
+}
+
+form input {
+    background-color: #2e3035;
+    border: 3px;
+    border-radius: 15px;
+    outline: none;
+    width: 400px;
+    height: 40px;
+    font-size: 15px;
+    padding: 8px 10px;
+    color: rgb(155, 153, 153)
+}
+
+.text-setting {
+    position: center;
+    color:aquamarine;
+    font-size: 20px;
+}
+
+.Name-Title {
+    position: center;
+}
+
+.Cover-Setting {
+    position: center;
+}
+
+.description-setting {
+    position: center;
+}
+
+.status-setting {
+    position: center;
+}
+
+.translate-setting {
+    position: center;
+}
+
+.date-setting {
+    position: center;
+}
+
+.type-setting {
+    position: center;
+}

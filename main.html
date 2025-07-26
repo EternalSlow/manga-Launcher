@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manga Launcher</title>
+    <link rel="stylesheet" type="text/css" href="style/main.css">
+    <link rel="stylesheet" href="style/simple.css">
+    
+    <!-- Добавляем React и ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="search-container">
+            <input type="text" id='search' placeholder="Поиск по названию">
+        </div>
+
+        <div id="comic-datail">
+            <div class="loader">
+                <div class="loader-circle"></div>
+            </div>
+        </div>
+        
+        <!-- Контейнер для джойстика -->
+        <!-- <div id="joystick-container"></div> -->
+    </div>
+
+    <!-- Скрипт с JSX для джойстика -->
+    <script type="text/jsx">
+        // Компонент джойстика
+        const Joystick = () => {
+            const [position, setPosition] = React.useState({ x: 0, y: 0 });
+            const [isDragging, setIsDragging] = React.useState(false);
+            const containerRef = React.useRef(null);
+            const radiusRef = React.useRef(0);
+            
+            React.useEffect(() => {
+                if (containerRef.current) {
+                    radiusRef.current = containerRef.current.offsetWidth / 2;
+                }
+            }, []);
+
+            const handleMove = (clientX, clientY) => {
+                if (!isDragging || !containerRef.current) return;
+                
+                const container = containerRef.current;
+                const rect = container.getBoundingClientRect();
+                const radius = radiusRef.current;
+                
+                let x = clientX - rect.left - radius;
+                let y = clientY - rect.top - radius;
+                
+                const distance = Math.min(Math.sqrt(x*x + y*y), radius);
+                const angle = Math.atan2(y, x);
+                
+                const newX = distance * Math.cos(angle);
+                const newY = distance * Math.sin(angle);
+                
+                setPosition({ x: newX, y: newY });
+                
+                // Можно использовать эти координаты для управления
+                const normalizedX = +(newX / radius).toFixed(2);
+                const normalizedY = +(newY / radius).toFixed(2);
+                console.log("Joystick position:", { x: normalizedX, y: -normalizedY });
+            };
+
+            const handleEnd = () => {
+                if (!isDragging) return;
+                setIsDragging(false);
+                setPosition({ x: 0, y: 0 });
+            };
+
+            const handleMouseDown = (e) => {
+                setIsDragging(true);
+                handleMove(e.clientX, e.clientY);
+            };
+
+            const handleMouseMove = (e) => {
+                handleMove(e.clientX, e.clientY);
+            };
+
+            const handleTouchStart = (e) => {
+                e.preventDefault();
+                setIsDragging(true);
+                handleMove(e.touches[0].clientX, e.touches[0].clientY);
+            };
+
+            const handleTouchMove = (e) => {
+                e.preventDefault();
+                handleMove(e.touches[0].clientX, e.touches[0].clientY);
+            };
+
+            const styles = {
+                container: {
+                    position: 'fixed',
+                    right: '50px',
+                    bottom: '50px',
+                    zIndex: 1000,
+                    width: '150px',
+                    height: '150px',
+                    borderRadius: '50%',
+                    background: 'rgba(240, 240, 240, 0.8)',
+                    boxShadow: 'inset 0 0 15px rgba(0, 0, 0, 0.2), 0 5px 15px rgba(0, 0, 0, 0.3)',
+                    overflow: 'hidden',
+                    touchAction: 'none',
+                    userSelect: 'none'
+                },
+                handle: {
+                    position: 'absolute',
+                    width: '60px',
+                    height: '60px',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(145deg, #4a90e2, #3a7bc8)',
+                    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.3)',
+                    transform: `translate(${position.x}px, ${position.y}px)`,
+                    transition: isDragging ? 'none' : 'transform 0.2s ease-out',
+                    top: '50%',
+                    left: '50%',
+                    marginTop: '-30px',
+                    marginLeft: '-30px',
+                    cursor: 'move',
+                    border: '2px solid white'
+                },
+                centerDot: {
+                    position: 'absolute',
+                    width: '10px',
+                    height: '10px',
+                    background: '#fff',
+                    borderRadius: '50%',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    boxShadow: '0 0 5px rgba(0,0,0,0.5)'
+                }
+            };
+
+            return (
+                <div
+                    ref={containerRef}
+                    style={styles.container}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleEnd}
+                    onMouseLeave={handleEnd}
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleEnd}
+                >
+                    <div style={styles.centerDot} />
+                    <div style={styles.handle} />
+                </div>
+            );
+        };
+
+        // Рендерим джойстик
+        ReactDOM.render(
+            <Joystick />,
+            document.getElementById('joystick-container')
+        );
+    </script>
+
+    <!-- Отдельный скрипт для Electron API -->
+    <script>
+        // Основной код приложения (Electron API)
+        const container = document.getElementById('comic-datail');
+        const searchInput = document.getElementById('search');
+        const comicsPath = 'comics';
+
+        async function columnComics(path) {
+            try {
+                const fs = require('fs');
+                const dirEntries = fs.readdirSync(path, { withFileTypes: true });
+                
+                return dirEntries
+                    .filter(entry => entry.isDirectory())
+                    .map(entry => entry.name);
+            } catch (error) {
+                console.error(`Ошибка чтения директории ${path}:`, error);
+                return [];
+            }
+        }
+
+        async function loadComics() {
+            try {
+                const fs = require('fs');
+                const path = require('path');
+                
+                const comicFolders = await columnComics(comicsPath);
+                const comics = [];
+                
+                for (const folder of comicFolders) {
+                    const folderPath = path.join(comicsPath, folder);
+                    const metaPath = path.join(folderPath, 'head.json');
+                    
+                    if (fs.existsSync(metaPath)) {
+                        try {
+                            const metaData = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+                            const coverPath = path.join(folderPath, metaData.Cover);
+                            
+                            const comic = {
+                                id: folder,
+                                name: metaData.Name || folder,
+                                cover: coverPath,
+                                date: metaData.date || "Неизвестно",
+                                type: metaData.type || "Комикс",
+                                love: metaData.love || false
+                            };
+                            
+                            comics.push(comic);
+                        } catch (e) {
+                            console.error(`Ошибка чтения head.json в ${folder}:`, e);
+                        }
+                    }
+                }
+                return comics;
+            } catch (error) {
+                console.error('Ошибка загрузки комиксов:', error);
+                return [];
+            }
+        }
+
+        function renderComics(comics) {
+            container.innerHTML = "";
+            
+            if (comics.length === 0) {
+                container.innerHTML = '<div class="empty-state"><h3>Манга не найдена</h3></div>';
+                return;
+            }
+            // Создаем строки по 2 элемента
+            for (let i = 0; i < comics.length; i += 2) {
+                const row = document.createElement('div');
+                row.className = "row";
+                if (comics[i]) { row.appendChild(createComicElement(comics[i])); }
+                if (comics[i+1]) { row.appendChild(createComicElement(comics[i+1])); } 
+                container.appendChild(row);
+            }
+
+        }
+
+        function createComicElement(comic) {
+            const comicElement = document.createElement('div');
+            comicElement.className = "comic-item";
+            
+            const img = document.createElement('img');
+            img.src = comic.cover;
+            img.alt = comic.name;
+            
+            const infoDiv = document.createElement('div');
+            infoDiv.className = "comic-info";
+            infoDiv.innerHTML = `
+                <div class="comic-title">${comic.name}</div>
+                <div class="comic-meta">
+                    <span>${comic.date} • ${comic.type}</span>
+                    ${comic.love ? '<span class="comic-love">❤️</span>' : ''}
+                </div>
+            `;
+            
+            comicElement.appendChild(img);
+            comicElement.appendChild(infoDiv);
+            comicElement.addEventListener('click', () => handleComicClick(comic));
+            
+            return comicElement;
+        }
+
+        // Обработчик клика на комикс
+        function handleComicClick(comic) {
+            window.location.href = `comic-detail.html?id=${comic.id}`;
+        }
+
+        // Поиск
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            if (searchTerm === '') {
+                loadAndRenderComics();
+                return;
+            }
+            
+            loadComics().then(comics => {
+                const filteredComics = comics.filter(comic => 
+                    comic.name.toLowerCase().includes(searchTerm) ||
+                    (comic.type && comic.type.toLowerCase().includes(searchTerm)) ||
+                    (comic.date && comic.date.toLowerCase().includes(searchTerm))
+                );
+                
+                renderComics(filteredComics);
+            });
+        });
+
+        // Загрузка и отрисовка комиксов
+        function loadAndRenderComics() {
+            container.innerHTML = `
+                <div class="loader">
+                    <div class="loader-circle"></div>
+                </div>
+            `;
+            
+            loadComics()
+                .then(comics => {
+                    renderComics(comics);
+                })
+                .catch(error => {
+                    console.error('Ошибка загрузки:', error);
+                    container.innerHTML = `
+                        <div class="error-message">
+                            <h3>Ошибка загрузки комиксов</h3>
+                            <p>${error.message}</p>
+                            <p>Проверьте папку: comics</p>
+                        </div>
+                    `;
+                });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadAndRenderComics();
+        });
+    </script>
+</body>
+</html>

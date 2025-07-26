@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Читалка</title>
+    <link rel="stylesheet" href="style/simple.css">
+    <link rel="stylesheet" href="style/reader.css">
+</head>
+<body>
+    <div class="chapter-navigation">
+        <button id="prev-chapter" class="nav-button">Предыдущая глава</button>
+        <button id="next-chapter" class="nav-button">Следующая глава</button>
+    </div>
+    <div class="container">
+        <a href="#" id="back-button" class="back-button">
+            <i class="fa-solid fa-arrow-right"></i>
+        </a>
+
+        <h1 id="comic-title"></h1>
+        <h2 id="chapter-title"></h2>
+
+        <div id="images-container"></div>
+
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const comicId = urlParams.get('id');
+        let chapter = parseInt(urlParams.get('chapter')) || 1;
+
+        const comicTitleElement = document.getElementById('comic-title');
+        const chapterTitleElement = document.getElementById('chapter-title');
+        const imagesContainer = document.getElementById('images-container');
+        const UpprevChapterButton = document.getElementById('prev-chapter');
+        const UpnextChapterButton = document.getElementById('next-chapter');
+
+        const backButton = document.getElementById('back-button');
+
+        let comicMeta = null;
+        let totalChapters = 0;
+
+        async function loadComicMetadata() {
+            try {
+                const fs = require('fs');
+                const path = require('path');
+                const metaPath = path.join('comics', comicId, 'head.json');
+
+                if (!fs.existsSync(metaPath)) {
+                    throw new Error('Метаданные комикса не найдены');
+                }
+
+                const data = fs.readFileSync(metaPath, 'utf8');
+                comicMeta = JSON.parse(data);
+                totalChapters = parseInt(comicMeta.count) || 0;
+                comicTitleElement.textContent = comicMeta.Name || comicId;
+                updateChapterTitle();
+            } catch (error) {
+                console.error('Ошибка загрузки метаданных:', error);
+                comicTitleElement.textContent = comicId;
+                chapterTitleElement.textContent = `Глава ${chapter}`;
+            }
+        }
+
+        function updateChapterTitle() {
+            chapterTitleElement.textContent = `Глава ${chapter}`;
+        }
+
+        async function loadChapterImages() {
+            imagesContainer.innerHTML = '<div class="loader">Загрузка...</div>';
+
+            try {
+                const fs = require('fs');
+                const path = require('path');
+                const chapterPath = path.join('comics', comicId, `page ${chapter}`);
+
+                if (!fs.existsSync(chapterPath)) {
+                    throw new Error(`Папка главы ${chapter} не найдена`);
+                }
+
+                const files = fs.readdirSync(chapterPath)
+                    .filter(file => {
+                        const ext = path.extname(file).toLowerCase();
+                        return ['.jpg', '.jpeg', '.png'].includes(ext);
+                    })
+                    .sort((a, b) => {
+                        const numA = parseInt(path.basename(a, path.extname(a)));
+                        const numB = parseInt(path.basename(b, path.extname(b)));
+                        return numA - numB;
+                    });
+
+                if (files.length === 0) {
+                    throw new Error('Изображения не найдены');
+                }
+
+                imagesContainer.innerHTML = '';
+
+                files.forEach(file => {
+                    const imgPath = path.join(chapterPath, file);
+                    const imgElement = document.createElement('img');
+                    imgElement.src = imgPath;
+                    imgElement.alt = `Страница ${file}`;
+                    imgElement.className = 'comic-page';
+                    imagesContainer.appendChild(imgElement);
+                });
+            } catch (error) {
+                console.error('Ошибка загрузки изображений:', error);
+                imagesContainer.innerHTML = `<div class="error">${error.message}</div>`;
+            }
+        }
+
+        function updateNavigationButtons() {
+            UpprevChapterButton.disabled = chapter <= 1;
+            UpnextChapterButton.disabled = chapter >= totalChapters;
+        }
+
+        function goToChapter(newChapter) {
+            if (newChapter < 1 || newChapter > totalChapters) return;
+            chapter = newChapter;
+            updateChapterTitle();
+            updateNavigationButtons();
+            loadChapterImages();
+            
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('chapter', chapter);
+            window.history.pushState({}, '', newUrl);
+        }
+
+        async function init() {
+            await loadComicMetadata();
+            updateNavigationButtons();
+            await loadChapterImages();
+
+            UpprevChapterButton.addEventListener('click', () => goToChapter(chapter - 1));
+            UpnextChapterButton.addEventListener('click', () => goToChapter(chapter + 1));
+
+            backButton.href = `comic-detail.html?id=${comicId}`;
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowLeft') goToChapter(chapter - 1);
+                if (e.key === 'ArrowRight') goToChapter(chapter + 1);
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

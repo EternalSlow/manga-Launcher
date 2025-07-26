@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Детали комикса</title>
+    <link rel="stylesheet" href="style/comic-detail.css">
+    <link rel="stylesheet" href="style/simple.css">
+</head>
+<body>
+    <div class="container">
+        <a href="main.html" class="back-button">
+            <i></i>Назад
+        </a>
+        
+        <div id="comic-detail">
+            <!-- Контент будет загружен сюда -->
+        </div>
+    </div>
+<script>
+    // Получаем ID комикса из URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const comicId = urlParams.get('id');
+
+async function loadComicDetail() {
+    try {
+        if (typeof require !== 'undefined') {
+            const fs = require('fs');
+            const path = require('path');
+            const comicPath = path.join('comics', comicId);
+            const metaPath = path.join(comicPath, 'head.json');
+            
+            if (!fs.existsSync(metaPath)) {
+                throw new Error('Файл метаданных не найден');
+            }
+            
+            const metaData = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+            const coverPath = path.join(comicPath, metaData.Cover);
+            const chapters = [];
+            const chapterCount = parseInt(metaData.count) || 0;
+            
+            for (let i = 1; i <= chapterCount; i++) {
+                const chapterDir = path.join(comicPath, `page ${i}`);
+                const chapterMetaPath = path.join(chapterDir, 'meta.json');
+                
+                // Проверяем существование папки главы
+                if (fs.existsSync(chapterDir)) {
+                    let chapterDate = "Неизвестно";
+                    
+                    // Если есть мета-файл - берем дату из него
+                    if (fs.existsSync(chapterMetaPath)) {
+                        const chapterMeta = JSON.parse(fs.readFileSync(chapterMetaPath, 'utf8'));
+                        chapterDate = chapterMeta.date || chapterDate;
+                    }
+                    
+                    chapters.push({
+                        number: i,
+                        date: chapterDate
+                    });
+                }
+            }
+            
+            return {
+                id: comicId,
+                name: metaData.Name || comicId,
+                cover: coverPath,
+                description: metaData.description || "Описание отсутствует",
+                date: metaData.date || "Неизвестно",
+                count: metaData.count || "0",
+                status: metaData.status || "Неизвестен",
+                translate: metaData.translate || "Неизвестен",
+                love: metaData.love || false,
+                type: metaData.type || "Манхва",
+                chapters: chapters
+            };
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки деталей комикса:', error);
+        return null;
+    }
+}
+
+        function generateListChapters(comic) {
+            if (!comic.chapters || comic.chapters.length === 0) {
+                return '<p class="empty-chapters">Главы отсутствуют</p>';
+            }
+            
+            let chaptersHTML = '';
+            comic.chapters.forEach(chapter => {
+                chaptersHTML += `
+                <div class="chapters-item">
+                    <div class="chapters-volume">Глава ${chapter.number}</div>
+                    <div class="chapters-date">${chapter.date}</div>
+                </div>`;
+            });
+            return chaptersHTML;
+        }
+        
+        // Функция для отображения данных комикса
+        function renderComicDetail(comic) {
+            if (!comic) {
+                document.getElementById('comic-detail').innerHTML = `
+                    <div class="error-message">
+                        <h3>Комикс не найден</h3>
+                        <p>Попробуйте вернуться на главную страницу</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // class status title
+            const statusClass = comic.status === "Завершено" ? "status-completed" : 
+                              comic.status === "Онгоинг" ? "status-ongoing" : "status-hiatus";
+            
+            const translateClass = comic.translate === "Завершено" ? "status-completed" : 
+                                 comic.translate === "Продолжается" ? "status-ongoing" : "status-hiatus";
+            
+            // button character
+            document.getElementById('comic-detail').innerHTML = `
+                <div class="detail-header">
+                    <img src="${comic.cover}" alt="${comic.name}" class="detail-cover">
+                    <div class="button-container">
+                        <button class="read-Button">Читать</button>    
+                    </div>
+                    <h2 class="Title-Name">${comic.name}</h2>
+                    <div class="tab-nav">
+                        <button class="tab-item tab-item--active" data-page="info">Описание</button>
+                        <button class="tab-item" data-page="chapters">Главы</button>
+                        <button class="tab-item edit-button">Edit</button>
+                    </div>
+                    <div class="tab-content">
+                        <div class="tab-page tab-page--active" data-page="info">
+                            <div class="description-manga">${comic.description}</div>
+                            <div class="meta-grid">
+                                <div class="meta-item">
+                                    <div class="meta-label">Дата релиза</div>
+                                    <div class="meta-value">${comic.date}</div>
+                                </div>
+                                <div class="meta-item">
+                                    <div class="meta-label">Количество глав</div>
+                                    <div class="meta-value">${comic.count}</div>
+                                </div>
+                                <div class="meta-item">
+                                    <div class="meta-label">Статус</div>
+                                    <div class="meta-value ${statusClass}">${comic.status}</div>
+                                </div>
+                                <div class="meta-item">
+                                    <div class="meta-label">Перевод</div>
+                                    <div class="meta-value ${translateClass}">${comic.translate}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tab-page" data-page="chapters">
+                            <div class="chapters-header">
+                                <div class="chapters-title">Главы</div>
+                            </div>
+                            <div class="chapters-list" id="chapters-list">
+                                ${generateListChapters(comic)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            const readButton = document.querySelector('.read-Button');
+            if (readButton) {
+                readButton.addEventListener('click', () => {
+                    window.location.href = `reader.html?id=${comic.id}&chapter=1`;
+                });
+            }
+            // button edit
+            const editButton = document.querySelector('.edit-button');
+            if (editButton) {
+                editButton.addEventListener('click', () => {
+                    window.location.href = `setting-character.html?id=${comic.id}`;
+                });
+            }
+
+        // Обработчик клика на комикс
+        function handleComicClick(comic) {
+            window.location.href = `comic-detail.html?id=${comic.id}`;
+        }
+            // Обработчики для глав
+            document.querySelectorAll('.chapters-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    const chapterNum = this.querySelector('.chapters-volume').textContent.match(/\d+/)[0];
+                    window.location.href = `reader.html?id=${comic.id}&chapter=${chapterNum}`;
+                });
+            });
+
+            // Добавляем обработчики для вкладок
+            const tabItems = document.querySelectorAll('.tab-item');
+            const tabPages = document.querySelectorAll('.tab-page');
+            
+            tabItems.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // Убираем активный класс у всех вкладок
+                    tabItems.forEach(item => item.classList.remove('tab-item--active'));
+                    // Добавляем активный класс текущей вкладке
+                    tab.classList.add('tab-item--active');
+                    
+                    // Плавное переключение вкладок
+                    tabPages.forEach(page => {
+                        if (page.dataset.page === tab.dataset.page) {
+                            page.classList.add('tab-page--active');
+                            setTimeout(() => {
+                                page.style.opacity = 1;
+                            }, 10);
+                        } else {
+                            page.style.opacity = 0;
+                            setTimeout(() => {
+                                page.classList.remove('tab-page--active');
+                            }, 300);
+                        }
+                    });
+                });
+            });
+        }
+        
+        // Загрузка данных при открытии страницы
+        async function init() {
+            const comic = await loadComicDetail();
+            renderComicDetail(comic);
+        }
+        
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
